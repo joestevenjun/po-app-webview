@@ -34,7 +34,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       // ⚠️ URL INI BISA DIGANTI NANTI SETELAH SOPHOS SIAP
-      ..loadRequest(Uri.parse('http://192.168.9.244:8083/po_mobile/'));
+      ..loadRequest(Uri.parse('https://bcss.multindo.com/po_mobile/'));
   }
 
   @override
