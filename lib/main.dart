@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
+  // Inisialisasi WebView untuk Android
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize WebView (untuk Android)
+  if (WebViewPlatform.instance is AndroidWebViewPlatform) {
+    // Set up Android WebView
+  }
+  
   runApp(const MyApp());
 }
 
@@ -13,6 +21,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'PO Approval',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
       home: const WebViewScreen(),
     );
   }
@@ -27,13 +38,51 @@ class WebViewScreen extends StatefulWidget {
 
 class _WebViewScreenState extends State<WebViewScreen> {
   late final WebViewController controller;
+  bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
+    
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      // ⚠️ URL INI BISA DIGANTI NANTI SETELAH SOPHOS SIAP
+      ..setBackgroundColor(const Color(0x00000000))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            setState(() {
+              isLoading = progress < 100;
+            });
+          },
+          onPageStarted: (String url) {
+            setState(() {
+              isLoading = true;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() {
+              isLoading = false;
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            setState(() {
+              errorMessage = 'Error: ${error.description}';
+              isLoading = false;
+            });
+            // Print error ke console untuk debugging
+            debugPrint('WebView Error: ${error.description}');
+            debugPrint('Error Type: ${error.errorType}');
+          },
+          onNavigationRequest: (NavigationRequest request) {
+            // Izinkan semua navigasi
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
+      ..addJavaScriptChannel('debug', onMessageReceived: (JavaScriptMessage message) {
+        debugPrint('JavaScript Message: ${message.message}');
+      })
       ..loadRequest(Uri.parse('https://bcss.multindo.com/po_mobile/'));
   }
 
@@ -51,7 +100,45 @@ class _WebViewScreenState extends State<WebViewScreen> {
           ),
         ],
       ),
-      body: WebViewWidget(controller: controller),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: controller),
+          if (isLoading)
+            const Center(
+              child: CircularProgressIndicator(),
+            ),
+          if (errorMessage != null)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        errorMessage = null;
+                        isLoading = true;
+                      });
+                      controller.reload();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
